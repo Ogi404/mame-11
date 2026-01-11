@@ -7,7 +7,13 @@
       "Bash(npx tailwindcss:*)",
       "Bash(npx tailwindcss@latest init:*)",
       "Bash(npm run build:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(firebase --version:*)",
+      "Bash(firebase login --interactive)",
+      "Bash(firebase use:*)",
+      "Bash(firebase init:*)",
+      "Bash(python3:*)",
+      "Bash(node -e:*)"
     ]
   }
 }
