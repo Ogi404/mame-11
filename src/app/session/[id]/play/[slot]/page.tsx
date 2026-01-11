@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { TopBar } from '@/components/TopBar';
 import { Timer } from '@/components/Timer';
@@ -17,20 +17,24 @@ import { getNextSlot, isLastSlot, checkSessionCompletion } from '@/domain/sessio
 function PlayModePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const sessionId = params.id as string;
   const slotKey = params.slot as SlotKey;
+
+  // Dev-only fast timer: ?devFast=1 → 5 second duration
+  const devFast = process.env.NODE_ENV === 'development' && searchParams.get('devFast') === '1';
 
   const [session, setSession] = useState<Session | null>(null);
   const [planVersion, setPlanVersion] = useState<PlanVersion | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const wakeLock = useWakeLock();
 
   // Get slot content and duration
   const slotContent = planVersion?.slots[slotKey];
-  const duration = slotContent?.roundDuration || 60;
+  const duration = devFast ? 5 : (slotContent?.roundDuration || 60);
 
   // Timer completion handler
   const handleTimerComplete = useCallback(async () => {
@@ -51,9 +55,11 @@ function PlayModePage() {
     }
 
     // Save completion to Firestore
-    setSaving(true);
+    setSaveStatus('saving');
     try {
       await markSlotCompleted(session.id, slotKey);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
 
       // Update local session state
       setSession((prev) => {
@@ -68,8 +74,7 @@ function PlayModePage() {
       });
     } catch (err) {
       console.error('Failed to save slot completion:', err);
-    } finally {
-      setSaving(false);
+      setSaveStatus('error');
     }
   }, [session, slotKey]);
 
@@ -123,14 +128,13 @@ function PlayModePage() {
   // Handle manual session complete (only on last slot screen)
   const handleMarkSessionComplete = async () => {
     if (!session) return;
-    setSaving(true);
+    setSaveStatus('saving');
     try {
       await markSessionCompleted(session.id);
       router.push(`/session/${session.id}`);
     } catch (err) {
       console.error('Failed to mark session complete:', err);
-    } finally {
-      setSaving(false);
+      setSaveStatus('error');
     }
   };
 
@@ -173,6 +177,13 @@ function PlayModePage() {
     <div className="flex min-h-screen flex-col pb-safe">
       <TopBar title={SLOT_DISPLAY_NAMES[slotKey]} />
 
+      {/* Dev fast mode indicator */}
+      {devFast && (
+        <div className="mx-4 mt-4 rounded bg-amber-100 px-3 py-2 text-center text-sm text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+          Dev fast mode: 5s timer
+        </div>
+      )}
+
       <main className="flex flex-1 flex-col p-4">
         {/* Timer section */}
         <section className="mb-6 flex justify-center py-4">
@@ -182,6 +193,19 @@ function PlayModePage() {
             state={timer.state}
           />
         </section>
+
+        {/* Save status feedback */}
+        {saveStatus === 'saving' && (
+          <p className="mb-4 text-center text-sm text-gray-500">Saving...</p>
+        )}
+        {saveStatus === 'saved' && (
+          <p className="mb-4 text-center text-sm text-green-600 dark:text-green-400">Saved</p>
+        )}
+        {saveStatus === 'error' && (
+          <p className="mb-4 text-center text-sm text-red-600 dark:text-red-400">
+            Failed to save. Check connection.
+          </p>
+        )}
 
         {/* Controls */}
         <section className="mb-6">
@@ -229,10 +253,10 @@ function PlayModePage() {
               {isLast && !session.completed && (
                 <button
                   onClick={handleMarkSessionComplete}
-                  disabled={saving}
+                  disabled={saveStatus === 'saving'}
                   className="w-full rounded-xl border border-gray-300 px-6 py-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
-                  {saving ? 'Saving...' : 'Mark Session Complete'}
+                  {saveStatus === 'saving' ? 'Saving...' : 'Mark Session Complete'}
                 </button>
               )}
             </div>

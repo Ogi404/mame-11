@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthContext } from '@/components/AuthProvider';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SessionCard, SessionCardSkeleton } from '@/components/SessionCard';
-import { Session, PlanVersion, ClassType } from '@/types';
+import { Session, PlanVersion } from '@/types';
 import { getSessionTypesForDate, isWeekend, formatDateISO } from '@/domain/schedule';
 import { getOrCreateSession } from '@/lib/firestore/sessions';
 import { getPlanVersion } from '@/lib/firestore/planVersions';
@@ -16,14 +17,28 @@ interface SessionWithPlan {
 }
 
 function HomePage() {
-  const { user, signOut, isEditor } = useAuthContext();
+  const { signOut, isEditor } = useAuthContext();
+  const searchParams = useSearchParams();
   const [sessions, setSessions] = useState<SessionWithPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const today = new Date();
-  const isWeekendDay = isWeekend(today);
-  const dateStr = formatDateISO(today);
+  // Dev-only date override via ?devDate=YYYY-MM-DD
+  const { effectiveDate, isDevDateActive, devDateParam } = useMemo(() => {
+    const isDev = process.env.NODE_ENV === 'development';
+    const param = searchParams.get('devDate');
+
+    if (isDev && param && /^\d{4}-\d{2}-\d{2}$/.test(param)) {
+      const parsed = new Date(param + 'T12:00:00'); // noon to avoid TZ issues
+      if (!isNaN(parsed.getTime())) {
+        return { effectiveDate: parsed, isDevDateActive: true, devDateParam: param };
+      }
+    }
+    return { effectiveDate: new Date(), isDevDateActive: false, devDateParam: null };
+  }, [searchParams]);
+
+  const isWeekendDay = isWeekend(effectiveDate);
+  const dateStr = formatDateISO(effectiveDate);
 
   useEffect(() => {
     async function loadTodaySessions() {
@@ -33,11 +48,11 @@ function HomePage() {
       }
 
       try {
-        const sessionTypes = getSessionTypesForDate(today);
+        const sessionTypes = getSessionTypesForDate(effectiveDate);
         const sessionsWithPlans: SessionWithPlan[] = [];
 
         for (const classType of sessionTypes) {
-          const session = await getOrCreateSession(today, classType);
+          const session = await getOrCreateSession(effectiveDate, classType);
           let planVersion: PlanVersion | null = null;
 
           if (session.planVersionId) {
@@ -56,7 +71,7 @@ function HomePage() {
     }
 
     loadTodaySessions();
-  }, [isWeekendDay]);
+  }, [isWeekendDay, dateStr]); // dateStr changes when effectiveDate changes
 
   return (
     <main className="flex min-h-screen flex-col p-4 safe-top safe-bottom">
@@ -71,9 +86,16 @@ function HomePage() {
         </button>
       </header>
 
+      {/* Dev date override hint */}
+      {isDevDateActive && (
+        <div className="mb-4 rounded bg-amber-100 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+          Dev date override: {devDateParam}
+        </div>
+      )}
+
       {/* Date display */}
       <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-        {today.toLocaleDateString('en-US', {
+        {effectiveDate.toLocaleDateString('en-US', {
           weekday: 'long',
           month: 'long',
           day: 'numeric',
