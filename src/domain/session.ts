@@ -134,3 +134,36 @@ export function getNextSlot(
 
   return configuredSlots[currentIndex + 1];
 }
+
+/**
+ * Get the previous slot before the given one (or null if it's the first)
+ */
+export function getPrevSlot(
+  currentSlot: SlotKey,
+  planVersion: PlanVersion | null
+): SlotKey | null {
+  const configuredSlots = getConfiguredSlots(planVersion);
+  const currentIndex = configuredSlots.indexOf(currentSlot);
+
+  if (currentIndex <= 0) {
+    return null;
+  }
+
+  return configuredSlots[currentIndex - 1];
+}
+
+/**
+ * Get the position of current slot (1-indexed) and total configured slots
+ */
+export function getSlotPosition(
+  currentSlot: SlotKey,
+  planVersion: PlanVersion | null
+): { current: number; total: number } {
+  const configuredSlots = getConfiguredSlots(planVersion);
+  const currentIndex = configuredSlots.indexOf(currentSlot);
+
+  return {
+    current: currentIndex + 1,
+    total: configuredSlots.length,
+  };
+}

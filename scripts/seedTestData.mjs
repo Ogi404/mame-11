@@ -56,17 +56,25 @@ async function seed() {
   await setDoc(doc(db, 'planVersions', testPlanVersion.id), testPlanVersion);
   console.log('Created planVersion:', testPlanVersion.id);
 
-  // Update session to use this plan
-  const sessionId = '2026-01-12_Kids';
-  await updateDoc(doc(db, 'sessions', sessionId), {
-    planVersionId: testPlanVersion.id,
-    category: testPlanVersion.category,
-    focus: testPlanVersion.focus,
-    evergreen: testPlanVersion.evergreen,
-  });
-  console.log('Updated session:', sessionId);
+  // Update today's sessions to use this plan
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const sessionIds = [`${today}_Kids`, `${today}_Main`];
 
-  console.log('Done! Try: http://localhost:3000/session/2026-01-12_Kids/play/warmup?devFast=1');
+  for (const sessionId of sessionIds) {
+    try {
+      await updateDoc(doc(db, 'sessions', sessionId), {
+        planVersionId: testPlanVersion.id,
+        category: testPlanVersion.category,
+        focus: testPlanVersion.focus,
+        evergreen: testPlanVersion.evergreen,
+      });
+      console.log('Updated session:', sessionId);
+    } catch (err) {
+      console.log('Session not found (visit home page first):', sessionId);
+    }
+  }
+
+  console.log(`Done! Try: http://localhost:3000/session/${today}_Kids/play/warmup?devFast=1`);
   process.exit(0);
 }
 

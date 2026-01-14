@@ -17,7 +17,7 @@ interface SessionWithPlan {
 }
 
 function HomePage() {
-  const { signOut, isEditor } = useAuthContext();
+  const { signOut } = useAuthContext();
   const searchParams = useSearchParams();
   const [sessions, setSessions] = useState<SessionWithPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,14 +161,12 @@ function HomePage() {
         >
           Calendar
         </Link>
-        {isEditor && (
-          <Link
-            href="/design"
-            className="rounded-lg bg-gray-100 px-4 py-3 text-center text-sm font-medium hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700"
-          >
-            Design
-          </Link>
-        )}
+        <Link
+          href="/design"
+          className="rounded-lg bg-gray-100 px-4 py-3 text-center text-sm font-medium hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700"
+        >
+          Design
+        </Link>
         <Link
           href="/notes"
           className="rounded-lg bg-gray-100 px-4 py-3 text-center text-sm font-medium hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700"

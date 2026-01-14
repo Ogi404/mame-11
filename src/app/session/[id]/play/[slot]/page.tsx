@@ -12,7 +12,8 @@ import { getSession, markSlotCompleted, markSessionCompleted } from '@/lib/fires
 import { getPlanVersion } from '@/lib/firestore/planVersions';
 import { useTimer } from '@/hooks/useTimer';
 import { useWakeLock } from '@/hooks/useWakeLock';
-import { getNextSlot, isLastSlot, checkSessionCompletion } from '@/domain/session';
+import { getNextSlot, getPrevSlot, getSlotPosition, isLastSlot, checkSessionCompletion } from '@/domain/session';
+import { useSwipeable } from 'react-swipeable';
 
 function PlayModePage() {
   const params = useParams();
@@ -61,22 +62,28 @@ function PlayModePage() {
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
 
+      // Construct updated session with completed slot
+      const updatedSession = {
+        ...session,
+        runState: {
+          ...session.runState,
+          [slotKey]: { completed: true },
+        },
+      };
+
+      // Check if all slots are now complete → auto-complete session
+      if (planVersion && checkSessionCompletion(updatedSession, planVersion)) {
+        await markSessionCompleted(session.id);
+        updatedSession.completed = true;
+      }
+
       // Update local session state
-      setSession((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          runState: {
-            ...prev.runState,
-            [slotKey]: { completed: true },
-          },
-        };
-      });
+      setSession(updatedSession);
     } catch (err) {
       console.error('Failed to save slot completion:', err);
       setSaveStatus('error');
     }
-  }, [session, slotKey]);
+  }, [session, slotKey, planVersion]);
 
   const timer = useTimer({
     initialSeconds: duration,
@@ -124,6 +131,26 @@ function PlayModePage() {
   const isSlotCompleted = session?.runState[slotKey]?.completed || timer.state === 'completed';
   const isLast = isLastSlot(slotKey, planVersion);
   const nextSlot = getNextSlot(slotKey, planVersion);
+  const prevSlot = getPrevSlot(slotKey, planVersion);
+  const slotPosition = getSlotPosition(slotKey, planVersion);
+
+  // Swipe handlers for navigating between slots
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => {
+      if (nextSlot) {
+        router.push(`/session/${sessionId}/play/${nextSlot}`);
+      }
+    },
+    onSwipedRight: () => {
+      if (prevSlot) {
+        router.push(`/session/${sessionId}/play/${prevSlot}`);
+      }
+    },
+    trackMouse: false,
+    trackTouch: true,
+    delta: 50,
+    preventScrollOnSwipe: true,
+  });
 
   // Handle manual session complete (only on last slot screen)
   const handleMarkSessionComplete = async () => {
@@ -174,12 +201,33 @@ function PlayModePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col pb-safe">
+    <div {...swipeHandlers} className="flex min-h-screen flex-col pb-safe">
       <TopBar title={SLOT_DISPLAY_NAMES[slotKey]} />
+
+      {/* Slot navigation */}
+      <div className="flex items-center justify-center gap-4 py-2">
+        <button
+          onClick={() => prevSlot && router.push(`/session/${sessionId}/play/${prevSlot}`)}
+          disabled={!prevSlot}
+          className="rounded-full px-3 py-1 text-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800"
+        >
+          ←
+        </button>
+        <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium dark:bg-gray-800">
+          {slotPosition.current} / {slotPosition.total}
+        </span>
+        <button
+          onClick={() => nextSlot && router.push(`/session/${sessionId}/play/${nextSlot}`)}
+          disabled={!nextSlot}
+          className="rounded-full px-3 py-1 text-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800"
+        >
+          →
+        </button>
+      </div>
 
       {/* Dev fast mode indicator */}
       {devFast && (
-        <div className="mx-4 mt-4 rounded bg-amber-100 px-3 py-2 text-center text-sm text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+        <div className="mx-4 rounded bg-amber-100 px-3 py-2 text-center text-sm text-amber-800 dark:bg-amber-900 dark:text-amber-200">
           Dev fast mode: 5s timer
         </div>
       )}
