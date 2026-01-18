@@ -1,6 +1,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFunctions, Functions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -18,6 +19,7 @@ const isConfigured = typeof window !== 'undefined' && firebaseConfig.apiKey;
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
+let functions: Functions | null = null;
 
 function initializeFirebase() {
   if (!isConfigured) {
@@ -33,6 +35,7 @@ function initializeFirebase() {
 
   auth = getAuth(app);
   db = getFirestore(app);
+  functions = getFunctions(app, 'europe-west4');
 }
 
 // Initialize on client side only
@@ -40,4 +43,4 @@ if (typeof window !== 'undefined') {
   initializeFirebase();
 }
 
-export { app, auth, db };
+export { app, auth, db, functions };

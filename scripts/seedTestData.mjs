@@ -50,31 +50,41 @@ const testPlanVersion = {
 };
 
 async function seed() {
-  console.log('Seeding test data...');
+  // Accept date argument: node scripts/seedTestData.mjs 2026-01-20
+  const targetDate = process.argv[2] || new Date().toISOString().split('T')[0];
+
+  console.log(`Seeding test data for date: ${targetDate}`);
 
   // Create plan version
   await setDoc(doc(db, 'planVersions', testPlanVersion.id), testPlanVersion);
   console.log('Created planVersion:', testPlanVersion.id);
 
-  // Update today's sessions to use this plan
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const sessionIds = [`${today}_Kids`, `${today}_Main`];
+  // Create sessions for the target date
+  const classTypes = ['Kids', 'Main'];
 
-  for (const sessionId of sessionIds) {
-    try {
-      await updateDoc(doc(db, 'sessions', sessionId), {
-        planVersionId: testPlanVersion.id,
-        category: testPlanVersion.category,
-        focus: testPlanVersion.focus,
-        evergreen: testPlanVersion.evergreen,
-      });
-      console.log('Updated session:', sessionId);
-    } catch (err) {
-      console.log('Session not found (visit home page first):', sessionId);
-    }
+  for (const classType of classTypes) {
+    const sessionId = `${targetDate}_${classType}`;
+    const sessionData = {
+      id: sessionId,
+      date: targetDate,
+      classType: classType,
+      planVersionId: testPlanVersion.id,
+      category: testPlanVersion.category,
+      focus: testPlanVersion.focus,
+      evergreen: testPlanVersion.evergreen,
+      runState: {},
+      completed: false,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+
+    await setDoc(doc(db, 'sessions', sessionId), sessionData);
+    console.log('Created session:', sessionId);
   }
 
-  console.log(`Done! Try: http://localhost:3000/session/${today}_Kids/play/warmup?devFast=1`);
+  console.log(`\nDone! Try:`);
+  console.log(`  http://localhost:3000?devDate=${targetDate}`);
+  console.log(`  http://localhost:3000/session/${targetDate}_Kids/play/warmup?devFast=1`);
   process.exit(0);
 }
 
