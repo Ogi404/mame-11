@@ -52,7 +52,10 @@ export function useAuth(): UseAuthReturn {
         if (firebaseUser) {
           // Get the ID token to access custom claims
           const idTokenResult = await firebaseUser.getIdTokenResult();
-          const role = (idTokenResult.claims.role as UserRole) || 'user';
+          // In development, default to admin role for testing
+          // In production, this should come from custom claims
+          const claimsRole = idTokenResult.claims.role as UserRole | undefined;
+          const role = claimsRole || (process.env.NODE_ENV === 'development' ? 'admin' : 'user');
 
           setUser({
             uid: firebaseUser.uid,

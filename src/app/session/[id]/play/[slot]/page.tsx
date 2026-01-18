@@ -1,134 +1,56 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { use } from 'react';
+import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/TopBar';
 import { Timer } from '@/components/Timer';
 import { HoldToStartButton } from '@/components/HoldToStartButton';
 import { SlotContentDisplay } from '@/components/SlotContent';
-import { Session, PlanVersion, SlotKey, SLOT_DISPLAY_NAMES } from '@/types';
-import { getSession, markSlotCompleted, markSessionCompleted } from '@/lib/firestore/sessions';
-import { getPlanVersion } from '@/lib/firestore/planVersions';
-import { useTimer } from '@/hooks/useTimer';
-import { useWakeLock } from '@/hooks/useWakeLock';
-import { getNextSlot, getPrevSlot, getSlotPosition, isLastSlot, checkSessionCompletion } from '@/domain/session';
+import { SlotKey, SLOT_DISPLAY_NAMES } from '@/types';
+import { getNextSlot, getPrevSlot, getSlotPosition, isLastSlot } from '@/domain/session';
 import { useSwipeable } from 'react-swipeable';
+import { usePlayModeContext } from '@/contexts/PlayModeContext';
 
-function PlayModePage() {
-  const params = useParams();
+interface PlayModePageProps {
+  params: Promise<{ id: string; slot: string }>;
+}
+
+export default function PlayModePage({ params }: PlayModePageProps) {
+  const { id: sessionId, slot } = use(params);
+  const slotKey = slot as SlotKey;
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const sessionId = params.id as string;
-  const slotKey = params.slot as SlotKey;
 
-  // Dev-only fast timer: ?devFast=1 → 5 second duration
-  const devFast = process.env.NODE_ENV === 'development' && searchParams.get('devFast') === '1';
+  const {
+    session,
+    planVersion,
+    loading,
+    error,
+    slotTimers,
+    activeSlot,
+    startTimer,
+    pauseTimer,
+    resumeTimer,
+    saveStatus,
+    markComplete,
+    devFast,
+  } = usePlayModeContext();
 
-  const [session, setSession] = useState<Session | null>(null);
-  const [planVersion, setPlanVersion] = useState<PlanVersion | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-
-  const wakeLock = useWakeLock();
-
-  // Get slot content and duration
+  // Get this slot's timer state
+  const timerState = slotTimers[slotKey];
   const slotContent = planVersion?.slots[slotKey];
-  const duration = devFast ? 5 : (slotContent?.roundDuration || 60);
 
-  // Timer completion handler
-  const handleTimerComplete = useCallback(async () => {
-    if (!session) return;
+  // Derive timer display values
+  const timeRemaining = timerState?.timeRemaining ?? 0;
+  const initialSeconds = timerState?.initialSeconds ?? 60;
+  const state = timerState?.state ?? 'idle';
 
-    // Trigger vibration (best-effort)
-    if ('vibrate' in navigator) {
-      navigator.vibrate([200, 100, 200, 100, 200]);
-    }
-
-    // Play audio chime (best-effort)
-    try {
-      const audio = new Audio('/sounds/complete.mp3');
-      audio.volume = 0.5;
-      await audio.play();
-    } catch {
-      // Audio playback failed, continue without sound
-    }
-
-    // Save completion to Firestore
-    setSaveStatus('saving');
-    try {
-      await markSlotCompleted(session.id, slotKey);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-
-      // Construct updated session with completed slot
-      const updatedSession = {
-        ...session,
-        runState: {
-          ...session.runState,
-          [slotKey]: { completed: true },
-        },
-      };
-
-      // Check if all slots are now complete → auto-complete session
-      if (planVersion && checkSessionCompletion(updatedSession, planVersion)) {
-        await markSessionCompleted(session.id);
-        updatedSession.completed = true;
-      }
-
-      // Update local session state
-      setSession(updatedSession);
-    } catch (err) {
-      console.error('Failed to save slot completion:', err);
-      setSaveStatus('error');
-    }
-  }, [session, slotKey, planVersion]);
-
-  const timer = useTimer({
-    initialSeconds: duration,
-    onComplete: handleTimerComplete,
-  });
-
-  // Request wake lock when timer is running
-  useEffect(() => {
-    if (timer.state === 'running') {
-      wakeLock.request();
-    }
-    return () => {
-      if (timer.state === 'running') {
-        wakeLock.release();
-      }
-    };
-  }, [timer.state]);
-
-  // Load session data
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const sessionData = await getSession(sessionId);
-        if (!sessionData) {
-          setError(new Error('Session not found'));
-          return;
-        }
-        setSession(sessionData);
-
-        if (sessionData.planVersionId) {
-          const planData = await getPlanVersion(sessionData.planVersionId);
-          setPlanVersion(planData);
-        }
-      } catch (err) {
-        setError(err as Error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, [sessionId]);
+  // Format time as MM:SS
+  const formattedTime = `${Math.floor(timeRemaining / 60)}:${String(timeRemaining % 60).padStart(2, '0')}`;
+  // Progress (0 = just started, 1 = completed)
+  const progress = initialSeconds > 0 ? 1 - timeRemaining / initialSeconds : 0;
 
   // Check if slot is already completed
-  const isSlotCompleted = session?.runState[slotKey]?.completed || timer.state === 'completed';
+  const isSlotCompleted = session?.runState[slotKey]?.completed || state === 'completed';
   const isLast = isLastSlot(slotKey, planVersion);
   const nextSlot = getNextSlot(slotKey, planVersion);
   const prevSlot = getPrevSlot(slotKey, planVersion);
@@ -154,15 +76,8 @@ function PlayModePage() {
 
   // Handle manual session complete (only on last slot screen)
   const handleMarkSessionComplete = async () => {
-    if (!session) return;
-    setSaveStatus('saving');
-    try {
-      await markSessionCompleted(session.id);
-      router.push(`/session/${session.id}`);
-    } catch (err) {
-      console.error('Failed to mark session complete:', err);
-      setSaveStatus('error');
-    }
+    await markComplete();
+    router.push(`/session/${sessionId}`);
   };
 
   // Navigate to next slot
@@ -200,6 +115,9 @@ function PlayModePage() {
     );
   }
 
+  // Check if this slot is the active one (has running/paused timer)
+  const isThisSlotActive = activeSlot === slotKey;
+
   return (
     <div {...swipeHandlers} className="flex min-h-screen flex-col pb-safe">
       <TopBar title={SLOT_DISPLAY_NAMES[slotKey]} />
@@ -232,13 +150,20 @@ function PlayModePage() {
         </div>
       )}
 
+      {/* Show indicator if another slot has active timer */}
+      {activeSlot && !isThisSlotActive && slotTimers[activeSlot] && (
+        <div className="mx-4 mt-2 rounded bg-blue-100 px-3 py-2 text-center text-sm text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+          Timer running on {SLOT_DISPLAY_NAMES[activeSlot]}
+        </div>
+      )}
+
       <main className="flex flex-1 flex-col p-4">
         {/* Timer section */}
         <section className="mb-6 flex justify-center py-4">
           <Timer
-            formattedTime={timer.formattedTime}
-            progress={timer.progress}
-            state={timer.state}
+            formattedTime={formattedTime}
+            progress={progress}
+            state={state}
           />
         </section>
 
@@ -257,29 +182,29 @@ function PlayModePage() {
 
         {/* Controls */}
         <section className="mb-6">
-          {timer.state === 'idle' && !isSlotCompleted && (
-            <HoldToStartButton onStart={timer.start} />
+          {state === 'idle' && !isSlotCompleted && (
+            <HoldToStartButton onStart={() => startTimer(slotKey)} />
           )}
 
-          {timer.state === 'running' && (
+          {state === 'running' && isThisSlotActive && (
             <button
-              onClick={timer.pause}
+              onClick={() => pauseTimer(slotKey)}
               className="w-full rounded-2xl bg-amber-500 px-8 py-6 text-xl font-bold text-white shadow-lg transition hover:bg-amber-600 active:scale-[0.98]"
             >
               Pause
             </button>
           )}
 
-          {timer.state === 'paused' && (
+          {state === 'paused' && isThisSlotActive && (
             <button
-              onClick={timer.resume}
+              onClick={() => resumeTimer(slotKey)}
               className="w-full rounded-2xl bg-blue-600 px-8 py-6 text-xl font-bold text-white shadow-lg transition hover:bg-blue-700 active:scale-[0.98]"
             >
               Resume
             </button>
           )}
 
-          {(timer.state === 'completed' || isSlotCompleted) && (
+          {(state === 'completed' || isSlotCompleted) && (
             <div className="space-y-3">
               {nextSlot ? (
                 <button
@@ -320,13 +245,5 @@ function PlayModePage() {
         </section>
       </main>
     </div>
-  );
-}
-
-export default function PlayMode() {
-  return (
-    <ProtectedRoute>
-      <PlayModePage />
-    </ProtectedRoute>
   );
 }
