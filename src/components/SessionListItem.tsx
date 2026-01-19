@@ -6,9 +6,11 @@ interface SessionListItemProps {
   session: Session;
   onClick: () => void;
   onRunAgain: () => void;
+  onDelete?: () => void;
+  isAdmin?: boolean;
 }
 
-export function SessionListItem({ session, onClick, onRunAgain }: SessionListItemProps) {
+export function SessionListItem({ session, onClick, onRunAgain, onDelete, isAdmin }: SessionListItemProps) {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T12:00:00');
     return date.toLocaleDateString('en-US', {
@@ -70,17 +72,32 @@ export function SessionListItem({ session, onClick, onRunAgain }: SessionListIte
       </button>
 
       {/* Action bar */}
-      {session.planVersionId && (
-        <div className="border-t border-gray-200 px-4 py-2 dark:border-gray-700">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRunAgain();
-            }}
-            className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-          >
-            Run again →
-          </button>
+      {(session.planVersionId || isAdmin) && (
+        <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2 dark:border-gray-700">
+          {session.planVersionId ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRunAgain();
+              }}
+              className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              Run again →
+            </button>
+          ) : (
+            <span />
+          )}
+          {isAdmin && onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            >
+              Delete
+            </button>
+          )}
         </div>
       )}
     </div>

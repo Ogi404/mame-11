@@ -3,6 +3,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -251,4 +252,12 @@ export async function replayToDate(
     completed: false,
     runState: createInitialRunState(),
   };
+}
+
+/**
+ * Delete a session (admin only)
+ */
+export async function deleteSession(sessionId: string): Promise<void> {
+  const docRef = doc(getDb(), COLLECTION, sessionId);
+  await deleteDoc(docRef);
 }

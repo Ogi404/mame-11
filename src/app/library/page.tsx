@@ -6,7 +6,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { TopBar } from '@/components/TopBar';
 import { SessionListItem } from '@/components/SessionListItem';
 import { DatePickerModal } from '@/components/DatePickerModal';
-import { getSessionsFiltered, replayToDate } from '@/lib/firestore/sessions';
+import { getSessionsFiltered, replayToDate, deleteSession } from '@/lib/firestore/sessions';
+import { useAuth } from '@/hooks/useAuth';
 import { Session, ClassType, Category, CLASS_TYPES, CATEGORIES } from '@/types';
 
 type StatusFilter = 'all' | 'complete' | 'incomplete';
@@ -14,6 +15,7 @@ type EvergreenFilter = 'all' | 'evergreen' | 'non-evergreen';
 
 function LibraryPage() {
   const router = useRouter();
+  const { isAdmin } = useAuth();
 
   // Filter state
   const [classType, setClassType] = useState<ClassType | 'all'>('all');
@@ -103,6 +105,21 @@ function LibraryPage() {
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedSession(null);
+  };
+
+  const handleDelete = async (session: Session) => {
+    const confirmed = window.confirm(
+      `Delete session "${session.focus || session.id}"?\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteSession(session.id);
+      // Remove from local state
+      setSessions((prev) => prev.filter((s) => s.id !== session.id));
+    } catch (err) {
+      alert(`Failed to delete session: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   };
 
   const clearFilters = () => {
@@ -287,6 +304,8 @@ function LibraryPage() {
                   session={session}
                   onClick={() => handleSessionClick(session)}
                   onRunAgain={() => handleRunAgain(session)}
+                  onDelete={() => handleDelete(session)}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>
