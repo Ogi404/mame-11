@@ -203,3 +203,52 @@ export async function getSessionsFiltered(filters: {
     ...doc.data(),
   })) as Session[];
 }
+
+/**
+ * Replay a session's plan to a new date (M11)
+ * Copies the planVersionId and denormalized fields from source to target session
+ */
+export async function replayToDate(
+  sourceSessionId: string,
+  targetDate: string
+): Promise<Session> {
+  // 1. Get source session
+  const sourceSession = await getSession(sourceSessionId);
+  if (!sourceSession) {
+    throw new Error('Source session not found');
+  }
+
+  // 2. Validate source has a plan
+  if (!sourceSession.planVersionId) {
+    throw new Error('Source session has no plan to replay');
+  }
+
+  // 3. Get or create target session (same classType as source)
+  const targetSession = await getOrCreateSession(targetDate, sourceSession.classType);
+
+  // 4. Validate target is not completed
+  if (targetSession.completed) {
+    throw new Error('Cannot overwrite a completed session');
+  }
+
+  // 5. Copy plan to target session
+  await updateSessionPlanVersion(targetSession.id, sourceSession.planVersionId, {
+    category: sourceSession.category,
+    focus: sourceSession.focus,
+    evergreen: sourceSession.evergreen,
+  });
+
+  // 6. Reset run state in case target had partial progress
+  await resetSessionRunState(targetSession.id);
+
+  // 7. Return updated target session
+  return {
+    ...targetSession,
+    planVersionId: sourceSession.planVersionId,
+    category: sourceSession.category,
+    focus: sourceSession.focus,
+    evergreen: sourceSession.evergreen,
+    completed: false,
+    runState: createInitialRunState(),
+  };
+}

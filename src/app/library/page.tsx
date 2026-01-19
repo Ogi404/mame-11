@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { TopBar } from '@/components/TopBar';
 import { SessionListItem } from '@/components/SessionListItem';
-import { getSessionsFiltered } from '@/lib/firestore/sessions';
+import { DatePickerModal } from '@/components/DatePickerModal';
+import { getSessionsFiltered, replayToDate } from '@/lib/firestore/sessions';
 import { Session, ClassType, Category, CLASS_TYPES, CATEGORIES } from '@/types';
 
 type StatusFilter = 'all' | 'complete' | 'incomplete';
@@ -26,6 +27,10 @@ function LibraryPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Modal state
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Load sessions when filters change
   useEffect(() => {
@@ -82,9 +87,22 @@ function LibraryPage() {
   };
 
   const handleRunAgain = (session: Session) => {
-    // TODO: Implement in M11 - Replay-to-Date
-    // For now, just show an alert
-    alert(`Run again feature coming soon!\n\nSession: ${session.focus || 'Untitled'}`);
+    setSelectedSession(session);
+    setIsModalOpen(true);
+  };
+
+  const handleReplayConfirm = async (targetDate: string) => {
+    if (!selectedSession) return;
+
+    const newSession = await replayToDate(selectedSession.id, targetDate);
+
+    // Navigate to the new session
+    router.push(`/session/${newSession.id}`);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedSession(null);
   };
 
   const clearFilters = () => {
@@ -275,6 +293,16 @@ function LibraryPage() {
           )}
         </section>
       </main>
+
+      {/* Replay-to-Date Modal */}
+      {selectedSession && (
+        <DatePickerModal
+          isOpen={isModalOpen}
+          onClose={handleModalClose}
+          onConfirm={handleReplayConfirm}
+          sourceSession={selectedSession}
+        />
+      )}
     </div>
   );
 }
