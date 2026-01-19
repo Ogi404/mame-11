@@ -127,7 +127,8 @@ export default function PlayModePage({ params }: PlayModePageProps) {
         <button
           onClick={() => prevSlot && router.push(`/session/${sessionId}/play/${prevSlot}`)}
           disabled={!prevSlot}
-          className="rounded-full px-3 py-1 text-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800"
+          aria-label="Previous slot"
+          className="rounded-full px-3 py-1 text-lg text-gray-500 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-30 dark:hover:bg-gray-800"
         >
           ←
         </button>
@@ -137,7 +138,8 @@ export default function PlayModePage({ params }: PlayModePageProps) {
         <button
           onClick={() => nextSlot && router.push(`/session/${sessionId}/play/${nextSlot}`)}
           disabled={!nextSlot}
-          className="rounded-full px-3 py-1 text-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800"
+          aria-label="Next slot"
+          className="rounded-full px-3 py-1 text-lg text-gray-500 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 disabled:opacity-30 dark:hover:bg-gray-800"
         >
           →
         </button>

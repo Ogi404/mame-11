@@ -91,6 +91,7 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
 
   // Refs for interval management
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const completionHandledRef = useRef<Set<SlotKey>>(new Set());
 
   // Wake lock
   const wakeLock = useWakeLock();
@@ -148,18 +149,19 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
   const handleTimerComplete = useCallback(async (slot: SlotKey) => {
     if (!session) return;
 
-    // Trigger vibration
+    // Trigger vibration (always, as backup for audio)
     if ('vibrate' in navigator) {
       navigator.vibrate([200, 100, 200, 100, 200]);
     }
 
-    // Play audio chime
+    // Play audio chime (best effort)
     try {
       const audio = new Audio('/sounds/complete.mp3');
       audio.volume = 0.5;
       await audio.play();
     } catch {
-      // Audio playback failed
+      // Audio playback failed - vibration already triggered as backup
+      console.debug('Audio playback failed, using vibration as backup');
     }
 
     // Save to Firestore
@@ -219,10 +221,7 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
         const remaining = Math.max(0, current.initialSeconds - elapsedSeconds);
 
         if (remaining <= 0) {
-          // Timer completed
-          setActiveSlot(null);
-          handleTimerComplete(activeSlot);
-
+          // Timer completed - mark as completed, completion effect will handle the rest
           return {
             ...prev,
             [activeSlot]: {
@@ -249,10 +248,47 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
         intervalRef.current = null;
       }
     };
+  }, [activeSlot, slotTimers]);
+
+  // Handle timer completion - separate effect to properly await async operations
+  useEffect(() => {
+    if (!activeSlot) return;
+
+    const timerState = slotTimers[activeSlot];
+    // Check if timer just completed and we haven't handled it yet
+    if (
+      timerState?.state === 'completed' &&
+      timerState.timeRemaining === 0 &&
+      !completionHandledRef.current.has(activeSlot)
+    ) {
+      // Mark as handled to prevent duplicate calls
+      completionHandledRef.current.add(activeSlot);
+
+      // Timer just completed - handle completion and clear active slot
+      const completeAndClear = async () => {
+        await handleTimerComplete(activeSlot);
+        setActiveSlot(null);
+      };
+      completeAndClear();
+    }
   }, [activeSlot, slotTimers, handleTimerComplete]);
 
   // Get active timer state for dependency tracking
   const activeTimerState = activeSlot ? slotTimers[activeSlot]?.state : null;
+
+  // Warn user before leaving page while saving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatus === 'saving') {
+        e.preventDefault();
+        e.returnValue = 'Changes are being saved. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveStatus]);
 
   // Wake lock management
   useEffect(() => {
@@ -265,6 +301,12 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
 
   // Timer controls
   const startTimer = useCallback((slot: SlotKey) => {
+    // Prevent starting if another timer is already running
+    if (activeSlot) {
+      console.debug('Cannot start timer: another timer is active');
+      return;
+    }
+
     setSlotTimers((prev) => {
       const current = prev[slot];
       if (!current || current.state !== 'idle') return prev;
@@ -280,7 +322,7 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
       };
     });
     setActiveSlot(slot);
-  }, []);
+  }, [activeSlot]);
 
   const pauseTimer = useCallback((slot: SlotKey) => {
     setSlotTimers((prev) => {

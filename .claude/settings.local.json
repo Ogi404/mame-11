@@ -13,7 +13,31 @@
       "Bash(firebase use:*)",
       "Bash(firebase init:*)",
       "Bash(python3:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(git push:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node scripts/seedTestData.mjs:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(firebase apphosting:backends:get:*)",
+      "Bash(firebase apphosting:rollouts:list:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git fetch:*)",
+      "Bash(firebase apphosting:backends:list:*)",
+      "Bash(firebase apphosting:rollouts:create:*)",
+      "Bash(timeout:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(tasklist:*)",
+      "Bash(gh run list:*)",
+      "Bash(gcloud auth application-default print-access-token:*)",
+      "Bash(git rm:*)"
     ]
   }
 }

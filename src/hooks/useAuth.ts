@@ -55,6 +55,15 @@ export function useAuth(): UseAuthReturn {
           // In development, default to admin role for testing
           // In production, this should come from custom claims
           const claimsRole = idTokenResult.claims.role as UserRole | undefined;
+
+          // Warn in production if custom claims are missing
+          if (!claimsRole && process.env.NODE_ENV === 'production') {
+            console.warn(
+              `[Auth] User ${firebaseUser.email} has no role in custom claims. ` +
+              `Defaulting to 'user'. Set role via admin panel or Cloud Function.`
+            );
+          }
+
           const role = claimsRole || (process.env.NODE_ENV === 'development' ? 'admin' : 'user');
 
           setUser({

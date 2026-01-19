@@ -18,6 +18,7 @@ function SessionOverviewPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [planVersion, setPlanVersion] = useState<PlanVersion | null>(null);
   const [loading, setLoading] = useState(true);
+  const [planLoading, setPlanLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -31,11 +32,14 @@ function SessionOverviewPage() {
         setSession(sessionData);
 
         if (sessionData.planVersionId) {
+          setPlanLoading(true);
           const planData = await getPlanVersion(sessionData.planVersionId);
           setPlanVersion(planData);
+          setPlanLoading(false);
         }
       } catch (err) {
         setError(err as Error);
+        setPlanLoading(false);
       } finally {
         setLoading(false);
       }
@@ -167,8 +171,17 @@ function SessionOverviewPage() {
           </div>
         )}
 
-        {/* Not assigned state */}
-        {!planVersion && (
+        {/* Plan loading skeleton */}
+        {planLoading && (
+          <div className="mb-6 space-y-3">
+            <div className="h-6 w-3/4 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="mt-4 h-10 w-full animate-pulse rounded-xl bg-gray-200 dark:bg-gray-700" />
+          </div>
+        )}
+
+        {/* Not assigned state - only show when we know there's no plan */}
+        {!planVersion && !planLoading && !session?.planVersionId && (
           <div className="mb-6 rounded-xl border border-gray-200 p-4 text-center dark:border-gray-800">
             <p className="text-gray-500 dark:text-gray-400">
               No plan assigned to this session yet.
