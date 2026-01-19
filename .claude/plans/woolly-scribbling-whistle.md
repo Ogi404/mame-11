@@ -1,46 +1,69 @@
-# Plan: Pre-Calendar Improvements
+# Plan: M12 - Calendar
 
 ## Goal
-Address high-priority issues and quick wins before implementing Calendar (M12).
+Implement a weekly calendar view showing Mon-Fri with sessions for each day.
+
+## Requirements (from TODO.md)
+- Weekly view with Mon-Fri columns
+- Week navigation (prev/next)
+- Fetch sessions for week range
+- Tap cell to go to Session Overview
 
 ---
 
-## High Priority Fixes
+## Implementation
 
-### 1. Timer Race Condition
-**File:** `src/contexts/PlayModeContext.tsx`
-**Issue:** `setActiveSlot(null)` runs before `handleTimerComplete()` awaits
-**Fix:** Await the completion handler before clearing state
+### File: `src/app/calendar/page.tsx`
 
-### 2. Unsaved Changes Warning
-**File:** `src/contexts/PlayModeContext.tsx`
-**Issue:** Users can navigate away while save is in progress
-**Fix:** Add `isSaving` state check; use `beforeunload` event to warn
+**State:**
+- `weekStart: Date` - Monday of the current week
+- `sessions: Session[]` - Sessions for the week
+- `loading: boolean`
 
-### 3. Silent Auth Role Fallback
-**File:** `src/hooks/useAuth.ts`
-**Issue:** Production silently defaults to 'user' if claims missing
-**Fix:** Add console.warn in production when custom claims are missing
+**UI Layout:**
+```
+┌─────────────────────────────────────────────┐
+│ TopBar: "Calendar"                          │
+├─────────────────────────────────────────────┤
+│ ← Week of Jan 20, 2026 →                    │
+├───────┬───────┬───────┬───────┬─────────────┤
+│ Mon   │ Tue   │ Wed   │ Thu   │ Fri         │
+│ 20    │ 21    │ 22    │ 23    │ 24          │
+├───────┼───────┼───────┼───────┼─────────────┤
+│ Kids  │ Intro │ Kids  │ Intro │ Kids        │
+│ ━━━   │ ━━━   │ ━━━   │ ━━━   │ ━━━         │
+│ Main  │ Main  │ Main  │ Main  │ Main        │
+│ ━━━   │ ━━━   │ ━━━   │ ━━━   │ ━━━         │
+└───────┴───────┴───────┴───────┴─────────────┘
+```
 
----
+**Session cell display:**
+- ClassType label (Kids/Intro/Main)
+- Status indicator: colored bar or badge
+  - Green: completed
+  - Blue: has plan
+  - Gray: no plan
 
-## Quick Wins
+**Logic:**
+1. Calculate Monday of current week on mount
+2. Generate array of 5 dates (Mon-Fri)
+3. Fetch sessions for date range using `getSessionsByDateRange`
+4. Group sessions by date
+5. For each day, show expected sessions based on schedule
+6. Tap session → `/session/${id}`
 
-### 4. Aria Labels on Navigation
-**File:** `src/app/session/[id]/play/[slot]/page.tsx`
-**Fix:** Add `aria-label="Previous slot"` and `aria-label="Next slot"` to nav buttons
+### Helper Functions (add to `src/domain/schedule.ts`)
 
-### 5. Prevent Concurrent Timer Starts
-**File:** `src/contexts/PlayModeContext.tsx`
-**Fix:** Check `timerState !== 'idle'` before starting
+```typescript
+// Get Monday of the week containing the given date
+export function getWeekStart(date: Date): Date
 
-### 6. Loading Skeleton for Plan Content
-**File:** `src/app/session/[id]/page.tsx`
-**Fix:** Show skeleton while planVersion is loading (separate from session loading)
+// Get array of weekday dates (Mon-Fri) for a week
+export function getWeekDays(weekStart: Date): Date[]
 
-### 7. Audio Fallback to Vibration
-**File:** `src/contexts/PlayModeContext.tsx`
-**Fix:** Wrap audio.play() in try-catch, always call vibrate as backup
+// Format week label: "Jan 20 - 24, 2026"
+export function formatWeekRange(weekStart: Date): string
+```
 
 ---
 
@@ -48,19 +71,16 @@ Address high-priority issues and quick wins before implementing Calendar (M12).
 
 | File | Changes |
 |------|---------|
-| `src/contexts/PlayModeContext.tsx` | #1, #2, #5, #7 |
-| `src/hooks/useAuth.ts` | #3 |
-| `src/app/session/[id]/play/[slot]/page.tsx` | #4 |
-| `src/app/session/[id]/page.tsx` | #6 |
+| `src/app/calendar/page.tsx` | Complete implementation |
+| `src/domain/schedule.ts` | Add week helper functions |
 
 ---
 
 ## Verification
 
-1. Start a timer, complete it - verify Firestore updates before UI changes
-2. Start timer, try to close tab - verify warning dialog appears
-3. Check console in production build for auth warning if claims missing
-4. Use keyboard to tab through play mode - verify focus indicators work
-5. Start timer while another is running - verify it's blocked
-6. Load session page on slow network - verify skeleton shows
-7. Mute device audio, complete timer - verify vibration still works
+1. Load Calendar page - shows current week
+2. Click ← - shows previous week
+3. Click → - shows next week
+4. Verify correct sessions per day (Kids on Mon/Wed/Fri, Intro on Tue/Thu, Main daily)
+5. Tap a session - navigates to session overview
+6. Sessions with plans show different indicator than those without

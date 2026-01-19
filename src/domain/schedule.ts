@@ -79,3 +79,50 @@ export function parseSessionId(sessionId: string): { date: string; classType: Cl
 
   return { date, classType: classType as ClassType };
 }
+
+/**
+ * Get Monday of the week containing the given date
+ */
+export function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  // If Sunday (0), go back 6 days; otherwise go back (day - 1) days
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(12, 0, 0, 0); // Noon to avoid TZ issues
+  return d;
+}
+
+/**
+ * Get array of weekday dates (Mon-Fri) for a week starting on Monday
+ */
+export function getWeekDays(weekStart: Date): Date[] {
+  const days: Date[] = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
+/**
+ * Format week range label: "Jan 20 - 24, 2026"
+ */
+export function formatWeekRange(weekStart: Date): string {
+  const friday = new Date(weekStart);
+  friday.setDate(weekStart.getDate() + 4);
+
+  const startMonth = weekStart.toLocaleDateString('en-US', { month: 'short' });
+  const startDay = weekStart.getDate();
+  const endDay = friday.getDate();
+  const year = friday.getFullYear();
+
+  // Check if week spans two months
+  const endMonth = friday.toLocaleDateString('en-US', { month: 'short' });
+  if (startMonth !== endMonth) {
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
+  }
+
+  return `${startMonth} ${startDay} - ${endDay}, ${year}`;
+}
