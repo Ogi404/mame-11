@@ -5,14 +5,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { TopBar } from '@/components/TopBar';
 import { SlotList } from '@/components/SlotList';
-import { Session, PlanVersion, SLOT_DISPLAY_NAMES } from '@/types';
+import { NoteEditorModal } from '@/components/NoteEditorModal';
+import { NotesViewModal } from '@/components/NotesViewModal';
+import { Session, PlanVersion, Note, SLOT_DISPLAY_NAMES } from '@/types';
 import { getSession } from '@/lib/firestore/sessions';
 import { getPlanVersion } from '@/lib/firestore/planVersions';
+import { getNotesForSession, getNote, saveNote } from '@/lib/firestore/notes';
 import { getSessionState, getNextIncompleteSlot, getCompletedSlotsCount } from '@/domain/session';
+import { useAuth } from '@/hooks/useAuth';
 
 function SessionOverviewPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const sessionId = params.id as string;
 
   const [session, setSession] = useState<Session | null>(null);
@@ -20,6 +25,12 @@ function SessionOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [planLoading, setPlanLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Notes state
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [myNote, setMyNote] = useState<Note | null>(null);
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [showNotesView, setShowNotesView] = useState(false);
 
   useEffect(() => {
     async function loadSession() {
@@ -47,6 +58,46 @@ function SessionOverviewPage() {
 
     loadSession();
   }, [sessionId]);
+
+  // Load notes for completed sessions
+  useEffect(() => {
+    async function loadNotes() {
+      if (!session?.completed || !user) return;
+
+      try {
+        const [allNotes, userNote] = await Promise.all([
+          getNotesForSession(sessionId),
+          getNote(sessionId, user.uid),
+        ]);
+        setNotes(allNotes);
+        setMyNote(userNote);
+      } catch (err) {
+        console.error('Failed to load notes:', err);
+      }
+    }
+
+    loadNotes();
+  }, [sessionId, session?.completed, user]);
+
+  // Handle saving a note
+  const handleSaveNote = async (content: string) => {
+    if (!user) return;
+    const savedNote = await saveNote(sessionId, user.uid, content);
+    setMyNote(savedNote);
+    // Update notes list
+    setNotes((prev) => {
+      const filtered = prev.filter((n) => n.userId !== user.uid);
+      return [...filtered, savedNote];
+    });
+  };
+
+  // Session label for modals
+  const sessionLabel = session
+    ? `${session.classType} - ${new Date(session.date + 'T12:00:00').toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      })}`
+    : '';
 
   if (loading) {
     return (
@@ -206,14 +257,27 @@ function SessionOverviewPage() {
               NOTES
             </h3>
             <div className="space-y-2">
-              <button className="w-full rounded-lg border border-gray-200 p-4 text-left transition hover:bg-gray-50 active:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-800">
-                <span className="font-medium">Add Note</span>
+              <button
+                onClick={() => setShowNoteEditor(true)}
+                className="w-full rounded-lg border border-gray-200 p-4 text-left transition hover:bg-gray-50 active:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-800"
+              >
+                <span className="font-medium">{myNote ? 'Edit Note' : 'Add Note'}</span>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Record your thoughts about this session
+                  {myNote ? 'Update your thoughts' : 'Record your thoughts about this session'}
                 </p>
               </button>
-              <button className="w-full rounded-lg border border-gray-200 p-4 text-left transition hover:bg-gray-50 active:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-800">
-                <span className="font-medium">View Notes</span>
+              <button
+                onClick={() => setShowNotesView(true)}
+                className="w-full rounded-lg border border-gray-200 p-4 text-left transition hover:bg-gray-50 active:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-800"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">View Notes</span>
+                  {notes.length > 0 && (
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                      {notes.length}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   See notes from all coaches
                 </p>
@@ -222,6 +286,30 @@ function SessionOverviewPage() {
           </section>
         )}
       </main>
+
+      {/* Note Editor Modal */}
+      <NoteEditorModal
+        isOpen={showNoteEditor}
+        onClose={() => setShowNoteEditor(false)}
+        onSave={handleSaveNote}
+        initialContent={myNote?.content || ''}
+        sessionLabel={sessionLabel}
+      />
+
+      {/* Notes View Modal */}
+      {user && (
+        <NotesViewModal
+          isOpen={showNotesView}
+          onClose={() => setShowNotesView(false)}
+          notes={notes}
+          currentUserId={user.uid}
+          onEditNote={() => {
+            setShowNotesView(false);
+            setShowNoteEditor(true);
+          }}
+          sessionLabel={sessionLabel}
+        />
+      )}
     </div>
   );
 }
