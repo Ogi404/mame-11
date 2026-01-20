@@ -32,32 +32,45 @@ function SessionOverviewPage() {
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [showNotesView, setShowNotesView] = useState(false);
 
-  useEffect(() => {
-    async function loadSession() {
-      try {
-        const sessionData = await getSession(sessionId);
-        if (!sessionData) {
-          setError(new Error('Session not found'));
-          return;
-        }
-        setSession(sessionData);
-
-        if (sessionData.planVersionId) {
-          setPlanLoading(true);
-          const planData = await getPlanVersion(sessionData.planVersionId);
-          setPlanVersion(planData);
-          setPlanLoading(false);
-        }
-      } catch (err) {
-        setError(err as Error);
-        setPlanLoading(false);
-      } finally {
-        setLoading(false);
+  const loadSession = async () => {
+    try {
+      const sessionData = await getSession(sessionId);
+      if (!sessionData) {
+        setError(new Error('Session not found'));
+        return;
       }
-    }
+      setSession(sessionData);
 
+      if (sessionData.planVersionId) {
+        setPlanLoading(true);
+        const planData = await getPlanVersion(sessionData.planVersionId);
+        setPlanVersion(planData);
+        setPlanLoading(false);
+      }
+    } catch (err) {
+      setError(err as Error);
+      setPlanLoading(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load session on mount
+  useEffect(() => {
     loadSession();
   }, [sessionId]);
+
+  // Refresh session data when page becomes visible (returning from play mode)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !loading) {
+        loadSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [sessionId, loading]);
 
   // Load notes for completed sessions
   useEffect(() => {
@@ -82,13 +95,18 @@ function SessionOverviewPage() {
   // Handle saving a note
   const handleSaveNote = async (content: string) => {
     if (!user) return;
-    const savedNote = await saveNote(sessionId, user.uid, user.displayName || 'Anonymous', content);
-    setMyNote(savedNote);
-    // Update notes list
-    setNotes((prev) => {
-      const filtered = prev.filter((n) => n.userId !== user.uid);
-      return [...filtered, savedNote];
-    });
+    try {
+      const savedNote = await saveNote(sessionId, user.uid, user.displayName || 'Anonymous', content);
+      setMyNote(savedNote);
+      // Update notes list
+      setNotes((prev) => {
+        const filtered = prev.filter((n) => n.userId !== user.uid);
+        return [...filtered, savedNote];
+      });
+    } catch (err) {
+      alert(`Failed to save note: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      throw err; // Re-throw so modal knows save failed
+    }
   };
 
   // Handle deleting a note

@@ -49,6 +49,10 @@ interface PlayModeContextValue {
   // Save status
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
 
+  // Retry failed save
+  retrySave: () => Promise<void>;
+  pendingSaveSlot: SlotKey | null;
+
   // Refresh session data
   refreshSession: () => Promise<void>;
 
@@ -88,10 +92,12 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
   // Timer state for all slots
   const [slotTimers, setSlotTimers] = useState<Partial<Record<SlotKey, SlotTimerState>>>({});
   const [activeSlot, setActiveSlot] = useState<SlotKey | null>(null);
+  const [pendingSaveSlot, setPendingSaveSlot] = useState<SlotKey | null>(null);
 
   // Refs for interval management
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const completionHandledRef = useRef<Set<SlotKey>>(new Set());
+  const saveInProgressRef = useRef<boolean>(false);
 
   // Wake lock
   const wakeLock = useWakeLock();
@@ -145,11 +151,8 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
     setSlotTimers(initialTimers);
   }, [planVersion, session?.id, devFast]); // Only reinit on session ID change, not every session update
 
-  // Handle timer completion
-  const handleTimerComplete = useCallback(async (slot: SlotKey) => {
-    if (!session) return;
-
-    // Play chime using Web Audio API (no external file needed)
+  // Play completion sound
+  const playCompletionSound = useCallback(() => {
     try {
       const AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
       const audioCtx = new AudioContext();
@@ -164,7 +167,6 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
         oscillator.frequency.value = frequency;
         oscillator.type = 'sine';
 
-        // Fade in and out for pleasant sound
         gainNode.gain.setValueAtTime(0, startTime);
         gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
         gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
@@ -178,21 +180,22 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
       playTone(659.25, now + 0.15, 0.3); // E5
       playTone(783.99, now + 0.3, 0.4);  // G5
     } catch {
-      // Audio failed silently
       console.debug('Audio playback failed');
     }
+  }, []);
 
-    // Trigger vibration (longer pattern for better feedback on mobile)
-    if ('vibrate' in navigator) {
-      navigator.vibrate([300, 100, 300, 100, 300]);
-    }
+  // Save slot completion with retry logic
+  const saveSlotCompletion = useCallback(async (slot: SlotKey, retryCount = 0): Promise<boolean> => {
+    if (!session) return false;
+    if (saveInProgressRef.current) return false;
 
-    // Save to Firestore
+    const maxRetries = 3;
+    saveInProgressRef.current = true;
     setSaveStatus('saving');
+    setPendingSaveSlot(slot);
+
     try {
       await markSlotCompleted(session.id, slot);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
 
       // Construct updated session
       const updatedSession = {
@@ -210,11 +213,48 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
       }
 
       setSession(updatedSession);
+      setSaveStatus('saved');
+      setPendingSaveSlot(null);
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      return true;
     } catch (err) {
-      console.error('Failed to save slot completion:', err);
+      console.error(`Failed to save slot completion (attempt ${retryCount + 1}):`, err);
+
+      if (retryCount < maxRetries - 1) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.pow(2, retryCount) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        saveInProgressRef.current = false;
+        return saveSlotCompletion(slot, retryCount + 1);
+      }
+
       setSaveStatus('error');
+      setPendingSaveSlot(slot);
+      return false;
+    } finally {
+      saveInProgressRef.current = false;
     }
   }, [session, planVersion]);
+
+  // Retry failed save
+  const retrySave = useCallback(async () => {
+    if (!pendingSaveSlot) return;
+    await saveSlotCompletion(pendingSaveSlot, 0);
+  }, [pendingSaveSlot, saveSlotCompletion]);
+
+  // Handle timer completion
+  const handleTimerComplete = useCallback(async (slot: SlotKey) => {
+    if (!session) return;
+
+    // Play sound and vibrate
+    playCompletionSound();
+    if ('vibrate' in navigator) {
+      navigator.vibrate([300, 100, 300, 100, 300]);
+    }
+
+    // Save to Firestore with retry
+    await saveSlotCompletion(slot);
+  }, [session, playCompletionSound, saveSlotCompletion]);
 
   // Timer tick logic
   useEffect(() => {
@@ -244,7 +284,11 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
         const remaining = Math.max(0, current.initialSeconds - elapsedSeconds);
 
         if (remaining <= 0) {
-          // Timer completed - mark as completed, completion effect will handle the rest
+          // Timer completed - clear interval immediately to prevent race condition
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
           return {
             ...prev,
             [activeSlot]: {
@@ -411,6 +455,8 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
     pauseTimer,
     resumeTimer,
     saveStatus,
+    retrySave,
+    pendingSaveSlot,
     refreshSession,
     markComplete,
     devFast,

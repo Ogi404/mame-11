@@ -31,6 +31,8 @@ export default function PlayModePage({ params }: PlayModePageProps) {
     pauseTimer,
     resumeTimer,
     saveStatus,
+    retrySave,
+    pendingSaveSlot,
     markComplete,
     devFast,
   } = usePlayModeContext();
@@ -184,10 +186,18 @@ export default function PlayModePage({ params }: PlayModePageProps) {
         {saveStatus === 'saved' && (
           <p className="mb-4 text-center text-sm text-green-600 dark:text-green-400">Saved</p>
         )}
-        {saveStatus === 'error' && (
-          <p className="mb-4 text-center text-sm text-red-600 dark:text-red-400">
-            Failed to save. Check connection.
-          </p>
+        {saveStatus === 'error' && pendingSaveSlot && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
+            <p className="text-center text-sm text-red-600 dark:text-red-400">
+              Failed to save. Check your connection.
+            </p>
+            <button
+              onClick={retrySave}
+              className="mt-2 w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            >
+              Retry Save
+            </button>
+          </div>
         )}
 
         {/* Controls */}
