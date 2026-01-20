@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/TopBar';
 import { Timer } from '@/components/Timer';
@@ -55,6 +55,14 @@ export default function PlayModePage({ params }: PlayModePageProps) {
   const nextSlot = getNextSlot(slotKey, planVersion);
   const prevSlot = getPrevSlot(slotKey, planVersion);
   const slotPosition = getSlotPosition(slotKey, planVersion);
+
+  // Check if early completion is allowed (warmup + at least 1 game complete)
+  const canCompleteEarly = useMemo(() => {
+    if (!session?.runState) return false;
+    const warmupDone = session.runState.warmup?.completed;
+    const game1Done = session.runState.game1?.completed;
+    return warmupDone && game1Done;
+  }, [session?.runState]);
 
   // Swipe handlers for navigating between slots
   const swipeHandlers = useSwipeable({
@@ -224,8 +232,8 @@ export default function PlayModePage({ params }: PlayModePageProps) {
                 </button>
               )}
 
-              {/* Manual complete button - only on last slot */}
-              {isLast && !session.completed && (
+              {/* Manual complete button - appears when warmup + game1 done */}
+              {!session.completed && canCompleteEarly && (
                 <button
                   onClick={handleMarkSessionComplete}
                   disabled={saveStatus === 'saving'}
