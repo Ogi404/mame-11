@@ -154,13 +154,36 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
       navigator.vibrate([200, 100, 200, 100, 200]);
     }
 
-    // Play audio chime (best effort)
+    // Play chime using Web Audio API (no external file needed)
     try {
-      const audio = new Audio('/sounds/complete.mp3');
-      audio.volume = 0.5;
-      await audio.play();
+      const AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
+      const audioCtx = new AudioContext();
+
+      const playTone = (frequency: number, startTime: number, duration: number) => {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'sine';
+
+        // Fade in and out for pleasant sound
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      const now = audioCtx.currentTime;
+      playTone(523.25, now, 0.3);        // C5
+      playTone(659.25, now + 0.15, 0.3); // E5
+      playTone(783.99, now + 0.3, 0.4);  // G5
     } catch {
-      // Audio playback failed - vibration already triggered as backup
+      // Audio failed - vibration already triggered as backup
       console.debug('Audio playback failed, using vibration as backup');
     }
 
