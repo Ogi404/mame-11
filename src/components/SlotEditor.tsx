@@ -93,13 +93,7 @@ export function SlotEditor({ slotKey, content, onChange, onRemove }: SlotEditorP
     onChange({ ...content, player2: player });
   };
 
-  const handleDurationChange = (value: string) => {
-    const minutes = parseInt(value, 10);
-    if (!isNaN(minutes) && minutes >= 0) {
-      onChange({ ...content, roundDuration: minutes * 60 }); // Store as seconds
-    }
-  };
-
+  
   return (
     <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
       {/* Header */}
@@ -130,16 +124,19 @@ export function SlotEditor({ slotKey, content, onChange, onRemove }: SlotEditorP
           {/* Duration */}
           <div className="mb-4">
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Round Duration (minutes)
+              Round Duration
             </label>
-            <input
-              type="number"
+            <select
               value={Math.round(content.roundDuration / 60)}
-              onChange={(e) => handleDurationChange(e.target.value)}
-              min={1}
-              step={1}
-              className="w-32 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
-            />
+              onChange={(e) => onChange({ ...content, roundDuration: parseInt(e.target.value) * 60 })}
+              className="w-24 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((mins) => (
+                <option key={mins} value={mins}>
+                  {mins} min
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Players */}
