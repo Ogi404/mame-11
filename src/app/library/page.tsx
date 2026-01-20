@@ -7,6 +7,8 @@ import { TopBar } from '@/components/TopBar';
 import { SessionListItem } from '@/components/SessionListItem';
 import { DatePickerModal } from '@/components/DatePickerModal';
 import { getSessionsFiltered, replayToDate, deleteSession } from '@/lib/firestore/sessions';
+import { getPlanVersion } from '@/lib/firestore/planVersions';
+import { createDraftFromPlanVersion } from '@/lib/firestore/planDrafts';
 import { useAuth } from '@/hooks/useAuth';
 import { Session, ClassType, Category, CLASS_TYPES, CATEGORIES } from '@/types';
 
@@ -15,7 +17,7 @@ type EvergreenFilter = 'all' | 'evergreen' | 'non-evergreen';
 
 function LibraryPage() {
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   // Filter state
   const [classType, setClassType] = useState<ClassType | 'all'>('all');
@@ -119,6 +121,27 @@ function LibraryPage() {
       setSessions((prev) => prev.filter((s) => s.id !== session.id));
     } catch (err) {
       alert(`Failed to delete session: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleEditAsDraft = async (session: Session) => {
+    if (!session.planVersionId || !user) return;
+
+    try {
+      // Fetch the plan version
+      const planVersion = await getPlanVersion(session.planVersionId);
+      if (!planVersion) {
+        alert('Plan version not found');
+        return;
+      }
+
+      // Create a new draft from the plan version
+      const draftId = await createDraftFromPlanVersion(planVersion, user.uid);
+
+      // Navigate to the design page
+      router.push(`/design/${draftId}`);
+    } catch (err) {
+      alert(`Failed to create draft: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -304,6 +327,7 @@ function LibraryPage() {
                   session={session}
                   onClick={() => handleSessionClick(session)}
                   onRunAgain={() => handleRunAgain(session)}
+                  onEditAsDraft={() => handleEditAsDraft(session)}
                   onDelete={() => handleDelete(session)}
                   isAdmin={isAdmin}
                 />

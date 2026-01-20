@@ -13,7 +13,7 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlanDraft, CreatePlanDraft } from '@/types';
+import { PlanDraft, CreatePlanDraft, PlanVersion } from '@/types';
 
 const COLLECTION = 'planDrafts';
 
@@ -125,4 +125,24 @@ export async function listDraftsByClassType(
     id: doc.id,
     ...doc.data(),
   })) as PlanDraft[];
+}
+
+/**
+ * Create a new draft from an existing PlanVersion (for editing published plans)
+ */
+export async function createDraftFromPlanVersion(
+  planVersion: PlanVersion,
+  userId: string
+): Promise<string> {
+  const draft: CreatePlanDraft = {
+    classType: planVersion.classType,
+    category: planVersion.category,
+    focus: planVersion.focus,
+    invariant: planVersion.invariant,
+    evergreen: planVersion.evergreen,
+    slots: planVersion.slots,
+    createdBy: userId,
+  };
+
+  return createPlanDraft(draft);
 }

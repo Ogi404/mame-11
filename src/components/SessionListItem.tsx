@@ -6,11 +6,12 @@ interface SessionListItemProps {
   session: Session;
   onClick: () => void;
   onRunAgain: () => void;
+  onEditAsDraft?: () => void;
   onDelete?: () => void;
   isAdmin?: boolean;
 }
 
-export function SessionListItem({ session, onClick, onRunAgain, onDelete, isAdmin }: SessionListItemProps) {
+export function SessionListItem({ session, onClick, onRunAgain, onEditAsDraft, onDelete, isAdmin }: SessionListItemProps) {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T12:00:00');
     return date.toLocaleDateString('en-US', {
@@ -74,19 +75,30 @@ export function SessionListItem({ session, onClick, onRunAgain, onDelete, isAdmi
       {/* Action bar */}
       {(session.planVersionId || isAdmin) && (
         <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2 dark:border-gray-700">
-          {session.planVersionId ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRunAgain();
-              }}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              Run again →
-            </button>
-          ) : (
-            <span />
-          )}
+          <div className="flex items-center gap-4">
+            {session.planVersionId && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRunAgain();
+                }}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Run again →
+              </button>
+            )}
+            {isAdmin && session.planVersionId && onEditAsDraft && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditAsDraft();
+                }}
+                className="text-sm font-medium text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
+              >
+                Edit as Draft
+              </button>
+            )}
+          </div>
           {isAdmin && onDelete && (
             <button
               onClick={(e) => {
