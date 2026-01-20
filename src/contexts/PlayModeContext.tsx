@@ -149,11 +149,6 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
   const handleTimerComplete = useCallback(async (slot: SlotKey) => {
     if (!session) return;
 
-    // Trigger vibration (always, as backup for audio)
-    if ('vibrate' in navigator) {
-      navigator.vibrate([200, 100, 200, 100, 200]);
-    }
-
     // Play chime using Web Audio API (no external file needed)
     try {
       const AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
@@ -183,8 +178,13 @@ export function PlayModeProvider({ sessionId, children }: PlayModeProviderProps)
       playTone(659.25, now + 0.15, 0.3); // E5
       playTone(783.99, now + 0.3, 0.4);  // G5
     } catch {
-      // Audio failed - vibration already triggered as backup
-      console.debug('Audio playback failed, using vibration as backup');
+      // Audio failed silently
+      console.debug('Audio playback failed');
+    }
+
+    // Trigger vibration (longer pattern for better feedback on mobile)
+    if ('vibrate' in navigator) {
+      navigator.vibrate([300, 100, 300, 100, 300]);
     }
 
     // Save to Firestore
