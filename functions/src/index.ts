@@ -105,6 +105,63 @@ export const getUserRole = onCall<{ targetEmail?: string }>(
     return {
       email: targetUser.email,
       role: (targetUser.customClaims?.role as UserRole) || 'user',
+      disabled: targetUser.disabled,
+    };
+  }
+);
+
+/**
+ * Cloud Function to disable or enable a user account.
+ * Only admins can call this function.
+ * Disabled users cannot sign in until re-enabled.
+ */
+export const setUserDisabled = onCall<{ targetEmail: string; disabled: boolean }>(
+  { region: 'europe-west4' },
+  async (request) => {
+    // 1. Verify caller is authenticated
+    const callerUid = request.auth?.uid;
+    if (!callerUid) {
+      throw new HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    // 2. Verify caller is admin
+    const caller = await getAuth().getUser(callerUid);
+    if (caller.customClaims?.role !== 'admin') {
+      throw new HttpsError('permission-denied', 'Only admins can disable users');
+    }
+
+    // 3. Validate input
+    const { targetEmail, disabled } = request.data;
+    if (!targetEmail || typeof targetEmail !== 'string') {
+      throw new HttpsError('invalid-argument', 'targetEmail is required');
+    }
+    if (typeof disabled !== 'boolean') {
+      throw new HttpsError('invalid-argument', 'disabled must be a boolean');
+    }
+
+    // 4. Find target user by email
+    let targetUser;
+    try {
+      targetUser = await getAuth().getUserByEmail(targetEmail);
+    } catch {
+      throw new HttpsError('not-found', `User with email ${targetEmail} not found`);
+    }
+
+    // 5. Prevent disabling yourself
+    if (targetUser.uid === callerUid && disabled) {
+      throw new HttpsError('failed-precondition', 'Cannot disable your own account');
+    }
+
+    // 6. Update disabled status
+    await getAuth().updateUser(targetUser.uid, { disabled });
+
+    const action = disabled ? 'disabled' : 'enabled';
+    console.log(`User ${targetEmail} (${targetUser.uid}) ${action} by ${caller.email}`);
+
+    return {
+      success: true,
+      message: `User ${targetEmail} has been ${action}`,
+      disabled,
     };
   }
 );

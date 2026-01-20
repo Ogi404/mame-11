@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { TopBar } from '@/components/TopBar';
-import { setUserRole, getUserRole } from '@/lib/firebase/functions';
+import { setUserRole, getUserRole, setUserDisabled } from '@/lib/firebase/functions';
 import { UserRole } from '@/types';
 
 const ROLES: { value: UserRole; label: string; description: string }[] = [
@@ -19,6 +19,8 @@ function AdminPage() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [currentRole, setCurrentRole] = useState<string | null>(null);
+  const [isDisabled, setIsDisabled] = useState<boolean | null>(null);
+  const [disableLoading, setDisableLoading] = useState(false);
 
   const handleLookup = async () => {
     if (!email.trim()) {
@@ -29,15 +31,42 @@ function AdminPage() {
     setLookupLoading(true);
     setMessage(null);
     setCurrentRole(null);
+    setIsDisabled(null);
 
     try {
       const result = await getUserRole(email.trim());
       setCurrentRole(result.role);
+      setIsDisabled(result.disabled ?? false);
     } catch (err) {
       const error = err as Error;
       setMessage({ type: 'error', text: error.message || 'Failed to lookup user' });
     } finally {
       setLookupLoading(false);
+    }
+  };
+
+  const handleToggleDisabled = async () => {
+    if (!email.trim() || isDisabled === null) return;
+
+    const newDisabled = !isDisabled;
+    const action = newDisabled ? 'disable' : 'enable';
+
+    if (!window.confirm(`Are you sure you want to ${action} this user?`)) {
+      return;
+    }
+
+    setDisableLoading(true);
+    setMessage(null);
+
+    try {
+      const result = await setUserDisabled(email.trim(), newDisabled);
+      setMessage({ type: 'success', text: result.message });
+      setIsDisabled(result.disabled);
+    } catch (err) {
+      const error = err as Error;
+      setMessage({ type: 'error', text: error.message || `Failed to ${action} user` });
+    } finally {
+      setDisableLoading(false);
     }
   };
 
@@ -97,6 +126,7 @@ function AdminPage() {
                   onChange={(e) => {
                     setEmail(e.target.value);
                     setCurrentRole(null);
+                    setIsDisabled(null);
                   }}
                   placeholder="user@example.com"
                   className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
@@ -111,9 +141,33 @@ function AdminPage() {
                 </button>
               </div>
               {currentRole && (
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Current role: <span className="font-medium">{currentRole}</span>
-                </p>
+                <div className="mt-2 space-y-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Current role: <span className="font-medium">{currentRole}</span>
+                  </p>
+                  {isDisabled !== null && (
+                    <div className="flex items-center gap-3">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Status:{' '}
+                        <span className={`font-medium ${isDisabled ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                          {isDisabled ? 'Disabled' : 'Active'}
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleToggleDisabled}
+                        disabled={disableLoading}
+                        className={`rounded px-3 py-1 text-sm font-medium transition ${
+                          isDisabled
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300'
+                            : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300'
+                        } disabled:opacity-50`}
+                      >
+                        {disableLoading ? '...' : isDisabled ? 'Enable' : 'Disable'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 

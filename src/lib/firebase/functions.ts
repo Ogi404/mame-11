@@ -29,16 +29,36 @@ export async function setUserRole(
  */
 export async function getUserRole(
   targetEmail?: string
-): Promise<{ email: string; role: UserRole }> {
+): Promise<{ email: string; role: UserRole; disabled?: boolean }> {
   if (!functions) {
     throw new Error('Firebase functions not initialized');
   }
 
   const callable = httpsCallable<
     { targetEmail?: string },
-    { email: string; role: UserRole }
+    { email: string; role: UserRole; disabled?: boolean }
   >(functions, 'getUserRole');
 
   const result = await callable({ targetEmail });
+  return result.data;
+}
+
+/**
+ * Disable or enable a user account (admin only)
+ */
+export async function setUserDisabled(
+  targetEmail: string,
+  disabled: boolean
+): Promise<{ success: boolean; message: string; disabled: boolean }> {
+  if (!functions) {
+    throw new Error('Firebase functions not initialized');
+  }
+
+  const callable = httpsCallable<
+    { targetEmail: string; disabled: boolean },
+    { success: boolean; message: string; disabled: boolean }
+  >(functions, 'setUserDisabled');
+
+  const result = await callable({ targetEmail, disabled });
   return result.data;
 }
