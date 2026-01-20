@@ -82,7 +82,7 @@ function SessionOverviewPage() {
   // Handle saving a note
   const handleSaveNote = async (content: string) => {
     if (!user) return;
-    const savedNote = await saveNote(sessionId, user.uid, content);
+    const savedNote = await saveNote(sessionId, user.uid, user.displayName || 'Anonymous', content);
     setMyNote(savedNote);
     // Update notes list
     setNotes((prev) => {

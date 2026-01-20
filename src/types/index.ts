@@ -140,6 +140,7 @@ export interface Note {
   id: string; // Format: `${sessionId}_${userId}`
   sessionId: string;
   userId: string;
+  userDisplayName: string;
   content: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;

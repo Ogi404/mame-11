@@ -69,6 +69,7 @@ export async function getNotesForSession(sessionId: string): Promise<Note[]> {
 export async function saveNote(
   sessionId: string,
   userId: string,
+  userDisplayName: string,
   content: string
 ): Promise<Note> {
   const noteId = generateNoteId(sessionId, userId);
@@ -94,6 +95,7 @@ export async function saveNote(
     id: noteId,
     sessionId,
     userId,
+    userDisplayName,
     content,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),

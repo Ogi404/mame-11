@@ -244,7 +244,7 @@ function NotesLibraryPage() {
 
                   {/* Meta info */}
                   <div className="mt-2 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-                    <span>{isMyNote ? 'You' : `User ${note.userId.slice(0, 6)}...`}</span>
+                    <span>{isMyNote ? 'You' : note.userDisplayName || `User ${note.userId.slice(0, 6)}...`}</span>
                     <span>•</span>
                     <span>{formatDate(note.updatedAt)}</span>
                     {isMyNote && (

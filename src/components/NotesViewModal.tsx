@@ -76,7 +76,7 @@ export function NotesViewModal({
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        {isCurrentUser ? 'You' : `User ${note.userId.slice(0, 6)}...`}
+                        {isCurrentUser ? 'You' : note.userDisplayName || `User ${note.userId.slice(0, 6)}...`}
                       </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {formatDate(note.updatedAt)}
