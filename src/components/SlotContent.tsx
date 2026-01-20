@@ -28,7 +28,7 @@ function PlayerSection({ title, player }: PlayerSectionProps) {
         )}
         {player.goals && (
           <div>
-            <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
               GOALS
             </span>
             <p className="text-sm">{player.goals}</p>
