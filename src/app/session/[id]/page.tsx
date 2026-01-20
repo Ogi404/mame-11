@@ -10,14 +10,14 @@ import { NotesViewModal } from '@/components/NotesViewModal';
 import { Session, PlanVersion, Note, SLOT_DISPLAY_NAMES } from '@/types';
 import { getSession } from '@/lib/firestore/sessions';
 import { getPlanVersion } from '@/lib/firestore/planVersions';
-import { getNotesForSession, getNote, saveNote } from '@/lib/firestore/notes';
+import { getNotesForSession, getNote, saveNote, deleteNote } from '@/lib/firestore/notes';
 import { getSessionState, getNextIncompleteSlot, getCompletedSlotsCount } from '@/domain/session';
 import { useAuth } from '@/hooks/useAuth';
 
 function SessionOverviewPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const sessionId = params.id as string;
 
   const [session, setSession] = useState<Session | null>(null);
@@ -89,6 +89,22 @@ function SessionOverviewPage() {
       const filtered = prev.filter((n) => n.userId !== user.uid);
       return [...filtered, savedNote];
     });
+  };
+
+  // Handle deleting a note
+  const handleDeleteNote = async (noteUserId: string) => {
+    const confirmed = window.confirm('Delete this note?');
+    if (!confirmed) return;
+
+    try {
+      await deleteNote(sessionId, noteUserId);
+      setNotes((prev) => prev.filter((n) => n.userId !== noteUserId));
+      if (noteUserId === user?.uid) {
+        setMyNote(null);
+      }
+    } catch (err) {
+      alert(`Failed to delete note: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   };
 
   // Session label for modals
@@ -307,6 +323,8 @@ function SessionOverviewPage() {
             setShowNotesView(false);
             setShowNoteEditor(true);
           }}
+          onDeleteNote={handleDeleteNote}
+          isAdmin={isAdmin}
           sessionLabel={sessionLabel}
         />
       )}

@@ -9,6 +9,8 @@ interface NotesViewModalProps {
   notes: Note[];
   currentUserId: string;
   onEditNote: () => void;
+  onDeleteNote?: (noteUserId: string) => void;
+  isAdmin?: boolean;
   sessionLabel?: string;
 }
 
@@ -18,6 +20,8 @@ export function NotesViewModal({
   notes,
   currentUserId,
   onEditNote,
+  onDeleteNote,
+  isAdmin,
   sessionLabel,
 }: NotesViewModalProps) {
   if (!isOpen) return null;
@@ -79,14 +83,24 @@ export function NotesViewModal({
                       </span>
                     </div>
                     <p className="whitespace-pre-wrap text-sm">{note.content}</p>
-                    {isCurrentUser && (
-                      <button
-                        onClick={onEditNote}
-                        className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                      >
-                        Edit
-                      </button>
-                    )}
+                    <div className="mt-2 flex items-center gap-3">
+                      {isCurrentUser && (
+                        <button
+                          onClick={onEditNote}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {(isCurrentUser || isAdmin) && onDeleteNote && (
+                        <button
+                          onClick={() => onDeleteNote(note.userId)}
+                          className="text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
