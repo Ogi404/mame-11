@@ -1,4 +1,4 @@
-# MAME 11 — Implementation Plan
+# Ensological — Implementation Plan
 
 ## Overview
 Mobile-first PWA for BJJ coaches to run daily constraints-led training sessions. Next.js App Router + TypeScript + Firebase (Auth, Firestore, Hosting).

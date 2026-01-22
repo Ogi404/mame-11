@@ -3,13 +3,13 @@ import { Providers } from '@/components/Providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'MAME 11',
+  title: 'Ensological',
   description: 'BJJ constraints-led training session manager',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'MAME 11',
+    title: 'Ensological',
   },
 };
 

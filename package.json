@@ -1,7 +1,7 @@
 {
-  "name": "mame-11",
+  "name": "ensological",
   "version": "0.1.0",
-  "description": "MAME 11 - BJJ constraints-led training session manager",
+  "description": "Ensological - BJJ constraints-led training session manager",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -1,4 +1,4 @@
-# MAME 11 — Implementation Checklist
+# Ensological — Implementation Checklist
 
 ## M1: Foundation
 

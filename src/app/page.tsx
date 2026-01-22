@@ -77,7 +77,7 @@ function HomePage() {
     <main className="flex min-h-screen flex-col p-4 safe-top safe-bottom">
       {/* Header */}
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">MAME 11</h1>
+        <h1 className="text-2xl font-bold">Ensological</h1>
         <button
           onClick={signOut}
           className="rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"

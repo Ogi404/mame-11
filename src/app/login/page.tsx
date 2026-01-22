@@ -29,7 +29,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8 text-center">
         <div>
-          <h1 className="text-3xl font-bold">MAME 11</h1>
+          <h1 className="text-3xl font-bold">Ensological</h1>
           <p className="mt-2 text-gray-500">
             BJJ constraints-led training sessions
           </p>
