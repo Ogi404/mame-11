@@ -6,17 +6,35 @@ interface TopBarProps {
   title?: string;
   showBack?: boolean;
   showHome?: boolean;
+  onBack?: () => void;
+  onHome?: () => void;
 }
 
-export function TopBar({ title, showBack = true, showHome = true }: TopBarProps) {
+export function TopBar({ title, showBack = true, showHome = true, onBack, onHome }: TopBarProps) {
   const router = useRouter();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      router.back();
+    }
+  };
+
+  const handleHome = () => {
+    if (onHome) {
+      onHome();
+    } else {
+      router.push('/');
+    }
+  };
 
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-background/95 px-4 py-3 backdrop-blur dark:border-gray-800">
       <div className="flex items-center gap-3">
         {showBack && (
           <button
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 dark:hover:bg-gray-800 dark:active:bg-gray-700"
             aria-label="Go back"
           >
@@ -40,7 +58,7 @@ export function TopBar({ title, showBack = true, showHome = true }: TopBarProps)
 
       {showHome && (
         <button
-          onClick={() => router.push('/')}
+          onClick={handleHome}
           className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 dark:hover:bg-gray-800 dark:active:bg-gray-700"
           aria-label="Go home"
         >

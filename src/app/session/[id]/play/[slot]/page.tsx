@@ -1,8 +1,9 @@
 'use client';
 
-import { use, useMemo } from 'react';
+import { use, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/TopBar';
+import { ConfirmLeaveModal } from '@/components/ConfirmLeaveModal';
 import { Timer } from '@/components/Timer';
 import { HoldToStartButton } from '@/components/HoldToStartButton';
 import { SlotContentDisplay } from '@/components/SlotContent';
@@ -36,6 +37,43 @@ export default function PlayModePage({ params }: PlayModePageProps) {
     markComplete,
     devFast,
   } = usePlayModeContext();
+
+  // Navigation guard state
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<'back' | 'home' | null>(null);
+
+  // Check if any timer is currently active (running or paused)
+  const isTimerActive = activeSlot &&
+    (slotTimers[activeSlot]?.state === 'running' ||
+     slotTimers[activeSlot]?.state === 'paused');
+
+  // Navigation guard handlers
+  const handleBack = () => {
+    if (isTimerActive) {
+      setPendingNavigation('back');
+      setShowLeaveModal(true);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleHome = () => {
+    if (isTimerActive) {
+      setPendingNavigation('home');
+      setShowLeaveModal(true);
+    } else {
+      router.push('/');
+    }
+  };
+
+  const confirmLeave = () => {
+    setShowLeaveModal(false);
+    if (pendingNavigation === 'back') {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  };
 
   // Get this slot's timer state
   const timerState = slotTimers[slotKey];
@@ -130,7 +168,7 @@ export default function PlayModePage({ params }: PlayModePageProps) {
 
   return (
     <div {...swipeHandlers} className="flex min-h-screen flex-col pb-safe">
-      <TopBar title={SLOT_DISPLAY_NAMES[slotKey]} />
+      <TopBar title={SLOT_DISPLAY_NAMES[slotKey]} onBack={handleBack} onHome={handleHome} />
 
       {/* Slot navigation */}
       <div className="flex items-center justify-center gap-4 py-2">
@@ -264,6 +302,13 @@ export default function PlayModePage({ params }: PlayModePageProps) {
           <SlotContentDisplay content={slotContent} />
         </section>
       </main>
+
+      {/* Confirm leave modal */}
+      <ConfirmLeaveModal
+        isOpen={showLeaveModal}
+        onCancel={() => setShowLeaveModal(false)}
+        onConfirm={confirmLeave}
+      />
     </div>
   );
 }
