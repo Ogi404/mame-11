@@ -1,8 +1,12 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 
 initializeApp();
+
+const db = getFirestore();
 
 type UserRole = 'user' | 'editor' | 'admin';
 
@@ -163,5 +167,40 @@ export const setUserDisabled = onCall<{ targetEmail: string; disabled: boolean }
       message: `User ${targetEmail} has been ${action}`,
       disabled,
     };
+  }
+);
+
+/**
+ * Scheduled Cloud Function to clean up empty expired sessions.
+ * Runs daily at 2:00 AM and deletes sessions where:
+ * - planVersionId is null (no plan assigned)
+ * - date is in the past (before today)
+ */
+export const cleanupEmptySessions = onSchedule(
+  {
+    schedule: 'every day 02:00',
+    timeZone: 'Europe/Amsterdam',
+    region: 'europe-west1',  // Cloud Scheduler requires supported region
+  },
+  async () => {
+    const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+
+    // Query sessions with no plan and date in the past
+    const snapshot = await db.collection('sessions')
+      .where('planVersionId', '==', null)
+      .where('date', '<', today)
+      .get();
+
+    if (snapshot.empty) {
+      console.log('No empty expired sessions to clean up');
+      return;
+    }
+
+    // Delete in batches (Firestore limit: 500 per batch)
+    const batch = db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+
+    console.log(`Cleaned up ${snapshot.size} empty expired sessions`);
   }
 );
