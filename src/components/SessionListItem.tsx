@@ -12,6 +12,11 @@ interface SessionListItemProps {
 }
 
 export function SessionListItem({ session, onClick, onRunAgain, onEditAsDraft, onDelete, isAdmin }: SessionListItemProps) {
+  // Check if any slot has been started (has completion data)
+  const hasProgress = Object.values(session.runState).some(
+    (slotState) => slotState?.completed
+  );
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T12:00:00');
     return date.toLocaleDateString('en-US', {
@@ -59,9 +64,13 @@ export function SessionListItem({ session, onClick, onRunAgain, onEditAsDraft, o
               <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
                 Complete
               </span>
-            ) : session.planVersionId ? (
+            ) : session.planVersionId && hasProgress ? (
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900 dark:text-amber-300">
                 In Progress
+              </span>
+            ) : session.planVersionId ? (
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                Ready
               </span>
             ) : (
               <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
