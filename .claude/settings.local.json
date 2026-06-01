@@ -37,7 +37,18 @@
       "Bash(tasklist:*)",
       "Bash(gh run list:*)",
       "Bash(gcloud auth application-default print-access-token:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(where:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(firebase firestore:delete:*)",
+      "Bash(npx firebase:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git log:*)",
+      "Bash(ping:*)",
+      "Bash(firebase functions:list:*)",
+      "Bash(gcloud services enable:*)",
+      "Bash(firebase functions:delete:*)",
+      "Bash(git init:*)"
     ]
   }
 }
