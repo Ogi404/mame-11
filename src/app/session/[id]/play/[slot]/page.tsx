@@ -8,6 +8,7 @@ import { Timer } from '@/components/Timer';
 import { HoldToStartButton } from '@/components/HoldToStartButton';
 import { SlotContentDisplay } from '@/components/SlotContent';
 import { SlotKey, SLOT_DISPLAY_NAMES } from '@/types';
+import { FloatingTimer } from '@/components/FloatingTimer';
 import { getNextSlot, getPrevSlot, getSlotPosition, isLastSlot } from '@/domain/session';
 import { useSwipeable } from 'react-swipeable';
 import { usePlayModeContext } from '@/contexts/PlayModeContext';
@@ -200,13 +201,6 @@ export default function PlayModePage({ params }: PlayModePageProps) {
         </div>
       )}
 
-      {/* Show indicator if another slot has active timer */}
-      {activeSlot && !isThisSlotActive && slotTimers[activeSlot] && (
-        <div className="mx-4 mt-2 rounded bg-blue-100 px-3 py-2 text-center text-sm text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-          Timer running on {SLOT_DISPLAY_NAMES[activeSlot]}
-        </div>
-      )}
-
       <main className="flex flex-1 flex-col p-4">
         {/* Timer section */}
         <section className="mb-6 flex justify-center py-4">
@@ -302,6 +296,16 @@ export default function PlayModePage({ params }: PlayModePageProps) {
           <SlotContentDisplay content={slotContent} />
         </section>
       </main>
+
+      {/* Floating timer when viewing a different slot */}
+      {activeSlot && !isThisSlotActive && slotTimers[activeSlot] && (
+        <FloatingTimer
+          slotKey={activeSlot}
+          formattedTime={`${Math.floor((slotTimers[activeSlot].timeRemaining ?? 0) / 60)}:${String((slotTimers[activeSlot].timeRemaining ?? 0) % 60).padStart(2, '0')}`}
+          isPaused={slotTimers[activeSlot].state === 'paused'}
+          onTap={() => router.push(`/session/${sessionId}/play/${activeSlot}`)}
+        />
+      )}
 
       {/* Confirm leave modal */}
       <ConfirmLeaveModal
