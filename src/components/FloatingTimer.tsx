@@ -13,7 +13,7 @@ export function FloatingTimer({ slotKey, formattedTime, isPaused, onTap }: Float
   return (
     <button
       onClick={onTap}
-      className={`fixed bottom-6 right-4 z-50 flex items-center gap-3 rounded-full px-5 py-3 shadow-lg transition-all active:scale-95 ${
+      className={`fixed top-16 right-4 z-50 flex items-center gap-3 rounded-full px-5 py-3 shadow-lg transition-all active:scale-95 ${
         isPaused ? 'bg-amber-500' : 'bg-blue-600'
       }`}
     >
