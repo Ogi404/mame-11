@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { TopBar } from '@/components/TopBar';
 import { ConfirmLeaveModal } from '@/components/ConfirmLeaveModal';
 import { Timer } from '@/components/Timer';
-import { HoldToStartButton } from '@/components/HoldToStartButton';
+import { SlideToStartButton } from '@/components/SlideToStartButton';
 import { SlotContentDisplay } from '@/components/SlotContent';
 import { SlotKey, SLOT_DISPLAY_NAMES } from '@/types';
 import { FloatingTimer } from '@/components/FloatingTimer';
@@ -235,7 +235,7 @@ export default function PlayModePage({ params }: PlayModePageProps) {
         {/* Controls */}
         <section className="mb-6">
           {state === 'idle' && !isSlotCompleted && (
-            <HoldToStartButton onStart={() => startTimer(slotKey)} />
+            <SlideToStartButton onStart={() => startTimer(slotKey)} />
           )}
 
           {state === 'running' && isThisSlotActive && (
