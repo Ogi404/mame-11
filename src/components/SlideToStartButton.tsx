@@ -105,6 +105,8 @@ export function SlideToStartButton({
   return (
     <div
       ref={trackRef}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
       className={`relative h-[72px] w-full overflow-hidden rounded-2xl shadow-lg ${
         disabled
           ? 'bg-gray-400 cursor-not-allowed'
