@@ -85,16 +85,16 @@ export function SlideToStartButton({
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
-    window.addEventListener('touchend', onTouchEnd);
-    window.addEventListener('touchcancel', onTouchEnd);
+    window.addEventListener('touchmove', onTouchMove, { passive: true, capture: true });
+    window.addEventListener('touchend', onTouchEnd, { capture: true });
+    window.addEventListener('touchcancel', onTouchEnd, { capture: true });
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onTouchEnd);
-      window.removeEventListener('touchcancel', onTouchEnd);
+      window.removeEventListener('touchmove', onTouchMove, { capture: true });
+      window.removeEventListener('touchend', onTouchEnd, { capture: true });
+      window.removeEventListener('touchcancel', onTouchEnd, { capture: true });
     };
   }, [isDragging, handleMove, handleEnd]);
 
@@ -106,7 +106,6 @@ export function SlideToStartButton({
     <div
       ref={trackRef}
       onTouchStart={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
       className={`relative h-[72px] w-full overflow-hidden rounded-2xl shadow-lg ${
         disabled
           ? 'bg-gray-400 cursor-not-allowed'
