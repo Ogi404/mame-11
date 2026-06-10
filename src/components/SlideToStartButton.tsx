@@ -79,7 +79,10 @@ export function SlideToStartButton({
     if (!isDragging) return;
 
     const onMouseMove = (e: MouseEvent) => handleMove(e.clientX);
-    const onTouchMove = (e: TouchEvent) => handleMove(e.touches[0].clientX);
+    const onTouchMove = (e: TouchEvent) => {
+      handleMove(e.touches[0].clientX);
+      e.stopPropagation();
+    };
     const onMouseUp = () => handleEnd();
     const onTouchEnd = () => handleEnd();
 
