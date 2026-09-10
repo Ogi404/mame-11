@@ -43,11 +43,26 @@ If ambiguity affects behavior or architecture, block and escalate.
 
 ## Execution environment
 
-Run project code, dependency installation, tests, and builds inside the approved isolated project environment.
+Codex owns code inspection and editing only. Run Codex with the
+`workspace-write` sandbox. Codex must not invoke Docker, access the Docker
+daemon, use `danger-full-access`, or bypass its sandbox.
+
+The Hermes builder wrapper owns project execution. It runs dependency
+installation, project code, tests, linting, and builds inside the approved
+isolated Docker environment.
 
 Do not execute untrusted project code directly against the host when an isolated environment is available.
 
-Network egress from the project execution sandbox should be disabled by default unless the Linear contract explicitly requires external access.
+Project execution, tests, linting, and builds run with network egress disabled
+by default (`--network none`).
+
+Dependency acquisition is a separate phase. Prefer cached/offline dependencies.
+If dependency acquisition requires network access, use only the repo's
+human-approved dependency-fetch policy. Do not silently enable network access.
+If no approved policy permits the required access, block and escalate.
+
+After dependency acquisition, perform verification in a fresh network-disabled
+project execution environment.
 
 ## Implementation loop
 
